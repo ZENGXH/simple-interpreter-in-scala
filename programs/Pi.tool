@@ -1,3 +1,4 @@
+
 object Pi {
     def main() : Unit = {
         if(new Computer().computePi()) { println("Ok"); } else { println("error"); }
@@ -74,15 +75,22 @@ class Computer {
 }
 
 class Frac {
+
     var numerator : Int;
     var denominator : Int;
     var sign : Bool; // true means positive.
     var util : Util;
 
     def init(n : Int, d : Int) : Frac = {
+
+println(n);
+
         util = new Util();
 
+println(n);
+
         numerator = util.abs(n);
+        
         denominator = util.abs(d);
         sign = (n < 0 && d < 0 || (0 < n || n == 0) && (0 < d || d == 0)); 
         return this.simplify();
