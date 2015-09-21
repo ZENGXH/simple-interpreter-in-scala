@@ -1,4 +1,3 @@
-
 object Pi {
     def main() : Unit = {
         if(new Computer().computePi()) { println("Ok"); } else { println("error"); }
