@@ -131,7 +131,7 @@ class Evaluator(ctx: Context, prog: Program) {
        case ObjectValue(cd) => println("object"+cd.id.value)
        case _ => println("ERROR: value in println is not string.")
      }
-      evalExpr(ectx,expr)
+      // evalExpr(ectx,expr)
     }
     
     /**
@@ -563,7 +563,7 @@ class Evaluator(ctx: Context, prog: Program) {
 
    
     case NewIntArray(size) => {
-      val len:Int = evalExpr(ectx,size).asInt
+      val len:Int = evalExpr(ectx,size).asInt 
       val arr:Array[Int] = new Array[Int](len)
       return (new ArrayValue(arr,len))
     }
@@ -740,7 +740,7 @@ def ectxTraceLol(ectx: EvaluationContext):Boolean = {
     }
       
     case MainMethodContext() =>{ 
-      println("context: Main \n no vars: ")
+//      println("context: Main \n no vars: ")
       false
     }
   }
@@ -762,23 +762,5 @@ def DEBUGectxTraceLol(ectx: EvaluationContext):Boolean = {
 }
 
 
-def ectxUpdate(ectx: EvaluationContext,objThis: ObjectValue,inMethod: Option[MethodDecl]): MethodContext = {
-  val ectxLocal = new MethodContext(objThis)
-    // inheriance vars to the new context
-    if(ectxTraceLol(ectx)) {
-      ectxLocal.vars = ectx.asInstanceOf[MethodContext].vars
-//      println("update " + ectxLocal.vars + " \n and " + ectx.asInstanceOf[MethodContext].obj.fields) 
-      /* 
-      for(p <- ectx.asInstanceOf[MethodContext].obj.fields){
-        p match{
-          case (s: String, v: Some[Value]) => ectxLocal.setVariable(s,v.get)
-          case(s: String, None)=>ectxLocal.declareVariable(s)
-          //case(s: String,)
-        }
-        */
-      }
-//      println("update done "+ ectxLocal.obj.cd.id.value + " \t "+ ectxLocal.vars)
-     return ectxLocal
-}
-}
 
+}
