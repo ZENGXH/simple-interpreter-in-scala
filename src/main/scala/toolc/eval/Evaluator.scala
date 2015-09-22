@@ -15,6 +15,32 @@ class Evaluator(ctx: Context, prog: Program) {
     prog.main.stats.foreach(evalStatement(ectx, _))
   }
   
+  // CONTEXT COMBINE: 
+  // add the field of the object into the current context
+  // context(main or method) + obj => context'(method)
+  def interContext(obj: ObjectValue, meth: MethodDecl,paras: List[ExprTree],ectx: EvaluationContext): MethodContext = {
+    val mecx = new MethodContext(obj)
+    
+    // s1: fields of object add to the context
+    if(!obj.fields.isEmpty) mecx.vars = obj.fields
+    
+    // s2: pass the argument, 
+    // get value form methcall.vars(need to be evaluation under old context)
+    if(!meth.args.isEmpty)
+      for(i <- 0 to meth.args.size - 1) {
+        mecx.declareVariable(meth.args(i).id.value) 
+        mecx.setVariable(  meth.args(i).id.value  , evalExpr(ectx,paras(i)) )
+    }
+     
+    // s3: methdecl also has it varlist -- to be declare in the context
+    if(!meth.vars.isEmpty)
+      for(v <- meth.vars) 
+        // the val in method may have same name with classfield -- override
+        if(!mecx.vars.contains(v.id.value)) 
+          mecx.declareVariable(v.id.value)
+
+    return mecx
+  } 
   
 /**
  *  everytime get in to evalStatements: 
@@ -25,19 +51,18 @@ class Evaluator(ctx: Context, prog: Program) {
  */
   def evalStatement(ectx: EvaluationContext, stmt: StatTree): Unit = {   
     // ectxTraceLol(ectx)
-    println("\n -------the statement is " + stmt)
+//    println("\n -------the statement is " + stmt)
     ectxTraceLol(ectx)
     stmt match {
        
     // non recursive call, may not change the Env
     case Block(stats) => {
-      //println("  [ in Block")
+//    println("  [ in Block")
       for(stat <- stats){
-                println("in block: "+ stat)
+//        println("in block: "+ stat)
         evalStatement(ectx, stat)
-
       }
-      println("block done")
+//      println("block done")
     }
     
   /**
@@ -50,21 +75,21 @@ class Evaluator(ctx: Context, prog: Program) {
    *      * if expr call method
    */
     case If(expr, thn, els) => {
-      println("  [in If ")
+//      println("  [in If ")
       //ectxTraceLol(ectx)
       //println("  [in els "+ els)
       
       if(evalExpr(ectx,expr).asBool) 
         {
-        println("if true run "+ thn)
+//        println("if true run "+ thn)
         evalStatement(ectx, thn)
         
         }
       else {
-        println("if false run "+ els)
+//        println("if false run "+ els)
         els.foreach(evalStatement(ectx, _))
       } 
-      println("if done")// els is type Option[]
+//      println("if done")// els is type Option[]
     }
     
     /**
@@ -80,31 +105,24 @@ class Evaluator(ctx: Context, prog: Program) {
     case While(expr, stat) => {
       //println("  [in while")
 
-      evalExpr(ectx,expr) match {
-        case BoolValue(boo) => {
-          if(boo) {
- //             println("  [while true]")
-              // the expression in condition is true:
-              val ectxLocal =
-                  if(ectxTraceLol(ectx))
-                    ectxUpdate(ectx,ectx.asInstanceOf[MethodContext].obj,None)
-                   else ectx
-              evalStatement(ectxLocal, stat)  // excecute the statement
+        
+        
+       
+          if(evalExpr(ectx,expr).asBool) {
+              evalStatement(ectx, stat)
+              evalStatement(ectx,stmt)  // excecute the statement
           } 
-          
-          else {// the expression in condition is false: noaction
-//           println("  [while false]") 
-          }
-        }
-        case _ => fatal("while block expect boolvalue")
-      }
+
+
+      //println("call again in while")
+      
     }
     
    
     case Println(expr) => {
-     //println("in PrintLn: " + expr)
+     
       val str2p = evalExpr(ectx,expr)
-      
+//     println("in PrintLn: " + str2p + " in context "+ ectx) 
       str2p match{
        case StringValue(s) => println(s)
        case IntValue(s) => println(s)
@@ -128,13 +146,13 @@ class Evaluator(ctx: Context, prog: Program) {
      * -- Env => x = exp + (val, Env'[x = val])
      */
     case Assign(id, expr) => {
-      println("***** before ASSIGH " + id.value )
+ //     println("***** before ASSIGH " + id.value )
       // ectxTraceLol(ectx)
       // val lhs = evalExpr(ectx,id)
       
       val rhs = evalExpr(ectx,expr)
       
-      println("before set ")
+  //    println("before set ")
       // ectxTraceLol(ectx)      
       
       // when we assigh value to a variable, the variable should be already define
@@ -146,7 +164,7 @@ class Evaluator(ctx: Context, prog: Program) {
       }
       
       ectxTraceLol(ectx)
-      println("***** assigh done "+ id.value)
+ //     println("***** assigh done "+ id.value)
       /**
        *  if now is in an object context, we should update the field of the object? -- NO!!
       if(ectxTraceLol(ectx)){
@@ -161,18 +179,23 @@ class Evaluator(ctx: Context, prog: Program) {
     case ArrayAssign(id, index, expr) => {
       //val ArrStmt = stmt.asInstanceOf[ArrayAssign]\
       // println("  [in arrayassign")
-      evalExpr(ectx,expr)   
+      
+      val arr = evalExpr(ectx,id).asArray
+      arr.setIndex(evalExpr(ectx,index).asInt,evalExpr(ectx,expr).asInt)
+      ectx.asInstanceOf[MethodContext].setVariable(id.value,arr)
+      
+       if(ectxTraceLol(ectx)){
+        if(ectx.asInstanceOf[MethodContext].obj.fields.contains(id.value))
+          ectx.asInstanceOf[MethodContext].obj.setField(id.value,arr)
+      }
     }
-    
-    case _ =>
-      fatal("unnexpected statement", stmt)
   }
     
 }
   
   def evalExpr(ectx: EvaluationContext, e: ExprTree): Value = {
-    println("-- eva expr: " + e)
-    ectxTraceLol(ectx)
+//    println("-- eva expr: " + e)
+//    ectxTraceLol(ectx)
     e match {
     
     case IntLit(value)    => IntValue(value)
@@ -242,7 +265,7 @@ class Evaluator(ctx: Context, prog: Program) {
       val lv = evalExpr(ectx,lhs)
       val rv = evalExpr(ectx, rhs)
       (lv, rv) match {
-        case (IntValue(l), IntValue(r)) => return BoolValue(l < r)
+        case (IntValue(l), IntValue(r)) => if(l<r)return BoolValue(true)else return BoolValue(false)
         case (lr, rr) => fatal("lessthan error!") //?????
       }
     }
@@ -271,130 +294,126 @@ class Evaluator(ctx: Context, prog: Program) {
       BoolValue(res)
 
     case ArrayRead(arr, index) => {
-      println("  [in ArrayRead")
-      println(evalExpr(ectx,arr))
-      return evalExpr(ectx,arr)
+//      println("  [in ArrayRead")
+      // println(evalExpr(ectx,arr))
+      return (new IntValue(evalExpr(ectx,arr).asArray.getIndex(evalExpr(ectx,index).asInt)))
     }
     
     case ArrayLength(arr) => {
-      println("  [in ArrayLength")
-      println(evalExpr(ectx,arr))
-      return evalExpr(ectx,arr)
+//      println("  [in ArrayLength")
+      // println(evalExpr(ectx,arr))
+      return (new IntValue(evalExpr(ectx,arr).asArray.size))
     }
     
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
-    /** 
-     *  ! update contect
-     *  obj == New(Identifier(Computer))
-      * meth == Identifier(computePi)
-      * args = List()
-      * findMethod return MethodDexl(BooleanType(),Identifier(compuerPi)
-      * 
-       * methodBlock: instance of `MethodDecl` 
-       *              with arrtributes: vars,args,retType,stats....
-       * var. List(VarDecl(IntType(),Identifier(j)), VarDecl(Identifier(Frac),Identifier(value)), VarDecl(Identifier(Real),Identifier(inter)))
-       * args. List()
-       * stats: state
-       * retType. BooleanType()
-       * 
-       * methodObj: instance of `class MethofContext`
-       * idents: list of the name[string] of the identifier
-       */
-    
-    /**
-     * semantic: -- obj return ObjectValue
-     *  Env(main or method) + tpe: ClassID
-     *    if MainEnv:
-     *    -- v: ObjValue + change MainEnv into MethodEnv(v)
-     *    if MethodEnv:
-     *    -- v: ObjValue + MethodEnv'(obj change to ->v)
-     */
     case MethodCall(obj, meth, args) => {
-     println("\n METHOD CALL: " + meth.value + " with arg: "+ args )
+//     println("\n METHOD CALL: " + meth.value + " with arg: "+ args )
       //println("\t obj: "+obj + " \t\t meth: " + meth +"\t\t\t args: " + args)
 
-      val objThis = evalExpr(ectx, obj)
-      println("i method call " + obj)
+      val objThis = evalExpr(ectx, obj).asObject
+//      println("i method call in class " + objThis.cd.id.value + " findmeth " + meth.value)
+      val methCall = findMethod(objThis.cd,meth.value)
+      val mectx = interContext(objThis,methCall,args,ectx)
       
-      if(ectxTraceLol(ectx))
-      {
-        obj match {case This() => {
+      methCall.stats.foreach(evalStatement(mectx,_))
+      
+      return evalExpr(mectx,methCall.retExpr)
+    }
+      
+/*
+        obj match {
+        case This() => {
         for(v <- ectx.asInstanceOf[MethodContext].vars){
           v match {
             case (s: String,None) => 
               if(!objThis.asObject.fields.contains(s))
                 objThis.asObject.declareField(s)
+                
             case (s: String,v: Some[Value]) => 
+              
               if(!objThis.asObject.fields.contains(s)){
               objThis.asObject.declareField(s)
               objThis.asObject.setField(s,v.get)
-            }else objThis.asObject.declareField(s)
+            }else objThis.asObject.setField(s,v.get)
           }
           
         }
-      }
-        
-      }
-        
-      }
-      
-      objThis match {
-        // semantic: new nameof_class.nameof_function(argement).
-        case ObjectValue(cd) => {
-          
-          // update context -- add the object
-          // the fields of the class has been add to the object in NEW
-          val ectxLocal = new MethodContext(objThis.asObject)
-          
-   
-ectxTraceLol(ectx)
+        //---------------------          
+        val ectxLocal = new MethodContext(objThis.asObject)
+
           // the new context should have the vars from the old context
            if(ectxTraceLol(ectx)) ectxLocal.vars = ectx.asInstanceOf[MethodContext].vars
-println("------------------------------")           
-ectxTraceLol(ectxLocal)
-           
-          //
-           
-          /*
-          if(ectxTraceLol(ectx))
-            {
-            
-            ectxLocal.vars = ectx.asInstanceOf[MethodContext].vars
-            for(value <- ectx.asInstanceOf[MethodContext].vars){
-              value match {
-                case 
-              }ectxLocal.vars = 
-            }
-            }
-            * 
-            */
-          
+
           // if meth is the field of the class --> directly return 
           if(ectxLocal.asInstanceOf[MethodContext].obj.fields.contains(meth.value)){
             return ectxLocal.asInstanceOf[MethodContext].obj.getField(meth.value)
           }
             else{
                val methCall: MethodDecl = findMethod(ectxLocal.asInstanceOf[MethodContext].obj.cd,meth.value)
-
                if(!args.isEmpty){
-                for(i <- 0 to args.size-1){
-println("6------------------------------")    
+                for(i <- 0 to args.size-1){  
                   if(!ectxLocal.vars.contains(methCall.args(i).id.value))
                   ectxLocal.declareVariable(methCall.args(i).id.value)
                   
                   ectxLocal.setVariable(methCall.args(i).id.value, evalExpr(ectxLocal,args(i)))
-ectxTraceLol(ectxLocal)                   
+                
                 }
               }
                
-               println("2------------------------------")           
-ectxTraceLol(ectxLocal)              
 
 
+               // put the field in the class into the methodcontext??
+               for(classField <- fieldsOfClass(objThis.asObject.cd)) if(!ectxLocal.vars.contains(classField)) ectxLocal.declareVariable(classField)
+               for(objectField <- objThis.asObject.fields)objectField match {
+                 case (s:String, v: Some[Value]) => ectxLocal.setVariable(s,v.get)
+                 case _ =>{}
+               }
+                
+               // put the vars of the method into the methodcontext
+               for(v <- methCall.vars) ectxLocal.declareVariable(v.id.value)
+                 
+               
+               // if meth is method in the class --> pass the arg
 
-println("4------------------------------")           
-ectxTraceLol(ectxLocal)
+
+               methCall.stats.foreach(evalStatement(ectxLocal,_))
+               // evalExpr(ectxLocal,methCall.retExpr)
+           return evalExpr(ectxLocal,methCall.retExpr)
+// -------------------------------------------------------
+            }
+        
+      }
+        
+        case _ => {
+                objThis match {
+        // semantic: new nameof_class.nameof_function(argement).
+        case ObjectValue(cd) => {
+          
+          // update context -- add the object
+          // the fields of the class has been add to the object in NEW
+          val ectxLocal = new MethodContext(objThis.asObject)
+
+          // the new context should have the vars from the old context
+           if(ectxTraceLol(ectx)) ectxLocal.vars = ectx.asInstanceOf[MethodContext].vars
+
+          // if meth is the field of the class --> directly return 
+          if(ectxLocal.asInstanceOf[MethodContext].obj.fields.contains(meth.value)){
+            return ectxLocal.asInstanceOf[MethodContext].obj.getField(meth.value)
+          }
+            else{
+               val methCall: MethodDecl = findMethod(ectxLocal.asInstanceOf[MethodContext].obj.cd,meth.value)
+               if(!args.isEmpty){
+                for(i <- 0 to args.size-1){  
+                  if(!ectxLocal.vars.contains(methCall.args(i).id.value))
+                  ectxLocal.declareVariable(methCall.args(i).id.value)
+                  
+                  ectxLocal.setVariable(methCall.args(i).id.value, evalExpr(ectxLocal,args(i)))
+                
+                }
+              }
+               
+
 
                // put the field in the class into the methodcontext??
                for(classField <- fieldsOfClass(cd)) if(!ectxLocal.vars.contains(classField)) ectxLocal.declareVariable(classField)
@@ -402,12 +421,10 @@ ectxTraceLol(ectxLocal)
                  case (s:String, v: Some[Value]) => ectxLocal.setVariable(s,v.get)
                  case _ =>{}
                }
-println("3------------------------------")           
-ectxTraceLol(ectxLocal)                 
+                
                // put the vars of the method into the methodcontext
                for(v <- methCall.vars) ectxLocal.declareVariable(v.id.value)
- println("5------------------------------")           
-ectxTraceLol(ectxLocal)                  
+                 
                
                // if meth is method in the class --> pass the arg
 
@@ -423,16 +440,28 @@ ectxTraceLol(ectxLocal)
         
         case _ => fatal("under mathod call - not objectvalue")   
       }
+          
+          // non this end
+          
+        }
+      }
+        
+      
+      
+
       
           }
+          * 
+          */
+  
   
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     case Identifier(name) => {
-       //  println("identifier: "+name + " context " + context.asvars)
-        ectxTraceLol(ectx)
-        if(name == "numerator")DEBUGectxTraceLol(ectx)
-        if(name == "init")DEBUGectxTraceLol(ectx)
+       // println("identifier: "+name + " context " + context.asvars)
+       // ectxTraceLol(ectx)
+       // if(name == "numerator")DEBUGectxTraceLol(ectx)
+       // if(name == "init")DEBUGectxTraceLol(ectx)
         /*
         if(ectxTraceLol(ectx))for(v <- ectx.asInstanceOf[MethodContext].vars){
           v match {
@@ -450,9 +479,9 @@ ectxTraceLol(ectxLocal)
            // for the object, follow by methodcall of getfield:
            // call field --> return in methodcall
            // return ectx.asInstanceOf[MethodContext].obj.getField(name)
-        else{
+        else fatal("cannot find id: " + name)
            // call method
-           val methCall: MethodDecl = findMethod(ectx.asInstanceOf[MethodContext].obj.cd,name)
+           // val methCall: MethodDecl = findMethod(ectx.asInstanceOf[MethodContext].obj.cd,name)
                        
             //val ectxlocal = ectxUpdate(ectx,ectx.asInstanceOf[MethodContext].obj,None)
 
@@ -467,11 +496,11 @@ ectxTraceLol(ectxLocal)
             */
            
            // excecute the method, argument in the context
-            methCall.stats.foreach(evalStatement(ectx,_))
+            // methCall.stats.foreach(evalStatement(ectx,_))
             
             // 
-           return evalExpr(ectx,methCall.retExpr)
-          }
+           //return evalExpr(ectx,methCall.retExpr)
+          
 
             
     }
@@ -498,8 +527,8 @@ ectxTraceLol(ectxLocal)
       // fields of the class -> objectValue
       for(classField <- fieldsOfClass(classIn)) newObj.declareField(classField)
       
-      println("\n \t \t ------ creat object "+ tpe.value + " have field: "+ newObj.fields )
-      DEBUGectxTraceLol(ectx)
+//      println("\n \t \t ------ creat object "+ tpe.value + " have field: "+ newObj.fields )
+//      DEBUGectxTraceLol(ectx)
       // tpe is StringValue(Computer), which is the name of the class
       // newObj.declareField(evalExpr(ectx,tpe).asString)
       // println(newObj.asObject)
@@ -508,8 +537,8 @@ ectxTraceLol(ectxLocal)
     }
     
     case This() => {
-      println("calling this with context " + ectx.asInstanceOf[MethodContext].vars + " \n and the filed is "+ ectx.asInstanceOf[MethodContext].obj.fields)
-      println("this done!!! ")     
+//      println("calling this with context " + ectx.asInstanceOf[MethodContext].vars + " \n and the filed is "+ ectx.asInstanceOf[MethodContext].obj.fields)
+//      println("this done!!! ")     
       return ectx.asInstanceOf[MethodContext].obj
       }
       // for(classField <- fieldsOfClass(ectx.asInstanceOf[MethodContext].obj.cd))ectx(classField)
@@ -533,7 +562,11 @@ ectxTraceLol(ectxLocal)
       
 
    
-    case NewIntArray(size) => return evalExpr(ectx,size)
+    case NewIntArray(size) => {
+      val len:Int = evalExpr(ectx,size).asInt
+      val arr:Array[Int] = new Array[Int](len)
+      return (new ArrayValue(arr,len))
+    }
   }
   }// end of evalExpr()
   
@@ -550,6 +583,10 @@ def ectxInMeth(ectx: EvaluationContext,objThis: ObjectValue): MethodContext = {
    return ectxLocal
 }
  */
+  
+  
+  
+  
 def getVarId(ectx: EvaluationContext,v: VarDecl): String = {
 //  println("getVarId :" + VarDecl + " have ids: " +evalExpr(ectx,v.id).asString) 
   return evalExpr(ectx,v.id).asString
@@ -577,7 +614,7 @@ def getVarId(ectx: EvaluationContext,v: VarDecl): String = {
     }
 
     def setVariable(name: String, v: Value) {
-     println(" \t set variable: " + name + " === " + v)
+//     println(" \t set variable: " + name + " === " + v)
       if (vars contains name) {
         vars += name -> Some(v)
       } else {
@@ -602,7 +639,7 @@ def getVarId(ectx: EvaluationContext,v: VarDecl): String = {
   
   // Helper functions to query the current program
   def findMethod(cd: ClassDecl, name: String): MethodDecl = {
-    println("findMethod in class: " + cd.id )
+//    println("findMethod in class: " + cd.id )
     cd.methods.find(_.id.value == name).orElse(
         // find whether there is a method named 'name' in the subclass
       cd.parent.map(p => findMethod(findClass(p.value), name))
@@ -624,6 +661,7 @@ def getVarId(ectx: EvaluationContext,v: VarDecl): String = {
     ml.vars.map(_.id.value).toSet
     // ? if empty????
   }
+
 
   
   // Runtime evaluation values, with as* methods which act as typecasts for convenience.
@@ -657,7 +695,7 @@ def getVarId(ectx: EvaluationContext,v: VarDecl): String = {
     }
 
     override def asObject = {
-      println("in class "+ cd.id.value +" the fields of objectvalue " + fields)
+ //     println("in class "+ cd.id.value +" the fields of objectvalue " + fields)
       this
     }
   }
@@ -697,7 +735,7 @@ def getVarId(ectx: EvaluationContext,v: VarDecl): String = {
 def ectxTraceLol(ectx: EvaluationContext):Boolean = {
   ectx match {
     case MethodContext(obj) => {
-      println("context: method, in obj " + obj.cd.id.value + "\n vars: " + ectx.asInstanceOf[MethodContext].vars + "\nobject field " + obj.fields)
+//      println("context: method, in obj " + obj.cd.id.value + "\n vars: " + ectx.asInstanceOf[MethodContext].vars + "\nobject field " + obj.fields)
       true
     }
       
@@ -739,7 +777,7 @@ def ectxUpdate(ectx: EvaluationContext,objThis: ObjectValue,inMethod: Option[Met
         }
         */
       }
-      println("update done "+ ectxLocal.obj.cd.id.value + " \t "+ ectxLocal.vars)
+//      println("update done "+ ectxLocal.obj.cd.id.value + " \t "+ ectxLocal.vars)
      return ectxLocal
 }
 }
