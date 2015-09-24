@@ -27,8 +27,7 @@ object Main {
     val ctx = processOptions(args)
 
     val program = new Parser().parse(ctx, ctx.files.head)
-    println(program)
-    //println(ctx)
+
 
     val evaluator = new Evaluator(ctx, program)
     

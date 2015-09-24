@@ -21,7 +21,7 @@ class IS {
         
         aux01 = size - 1 ;
         aux01 = this.Sort();
-        aux01 = this.Print();
+
         return 9999;
     }
 
@@ -38,27 +38,24 @@ class IS {
 		
 		i = 1;
 		while(i < (size)){
-			aux03 = this.Print();
+			
 			j = this.findPlace(i);
-			// println(j);	
+
 			
 			if(j < i) aux03 = this.insertNum(j,i);
-
 			// number[i] < sortNum[j], place at j
 			
 			else aux03 = this.appendNum(i,j);
 			i = i + 1;
 		}
+		aux03 = this.Print();
 		return 0;
 	}
 	
 	def insertNum(k : Int, i: Int): Int = {
 		var v : Int;
 		v = i;
-		//println("insert");
-		//println(k);
-		//println(i);
-		//println("start");
+
 		while(! (k == v)){
 			sortNum[v] = sortNum[v - 1];
 			
