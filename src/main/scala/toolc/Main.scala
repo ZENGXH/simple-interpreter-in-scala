@@ -19,13 +19,14 @@ object Main {
       reporter.fatal("Exactly one file expected, "+files.size+" file(s) given.")
     }
 
-    Context(reporter = reporter, files = new File(files.head) :: Nil)
+    Context(reporter = reporter, file = new File(files.head))
   }
 
 
   def main(args: Array[String]) {
     val ctx = processOptions(args)
 
+<<<<<<< HEAD
     val program = new Parser().parse(ctx, ctx.files.head)
     println(program)
     //println(ctx)
@@ -33,7 +34,15 @@ object Main {
     val evaluator = new Evaluator(ctx, program)
     
     evaluator.eval()
+=======
+    val pipeline = Lexer andThen
+                   PrintTokens
 
+    val result = pipeline.run(ctx)(ctx.file)
+>>>>>>> origin/lab02
+
+    ctx.reporter.terminateIfErrors
+      
   }
 }
 
