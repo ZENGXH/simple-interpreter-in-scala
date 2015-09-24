@@ -59,10 +59,10 @@ class MazeArray {
     arrTipChar = " "; // ">";
 
     size = sze;
-    println("pass?");
+ 
     // object(mazearray).init(){object(pseudoarandom...).init()}
     prng = new PseudoRandomNumberGenerator().init();
-    println("pass!");
+
     wallCount = 2 * size * (size - 1);
     walls = new Int[wallCount]; //20
     vertOffset = wallCount / 2; //10
@@ -382,11 +382,9 @@ class PseudoRandomNumberGenerator {
   var b : Int;
 
   def init() : PseudoRandomNumberGenerator = {
-    println("if i can print :");
+
 
     a = 12345; 
-      //  println(this.a);
-        // put whatever you like in here
     b = 67890; 
     return this;
   }
