@@ -12,7 +12,8 @@ class Evaluator(ctx: Context, prog: Program) {
     val ectx = new MainMethodContext
 
     // Evaluate each statement of the main method
-    prog.main.stats.foreach(evalStatement(ectx, _))
+    // println(prog)
+   prog.main.stats.foreach(evalStatement(ectx, _))
   }
   
   // CONTEXT COMBINE: 
@@ -49,7 +50,7 @@ class Evaluator(ctx: Context, prog: Program) {
  */
   def evalStatement(ectx: EvaluationContext, stmt: StatTree): Unit = {   
 
-//    println("\n -------the statement is " + stmt)
+ //   println("\n -------the statement is " + stmt)
     ectxTraceLol(ectx)
     stmt match {
        
@@ -115,6 +116,7 @@ class Evaluator(ctx: Context, prog: Program) {
      * -- Env => x = exp +　Env'[x = val]
      */
     case Assign(id, expr) => {
+//      if(id.value == "b")println("now the object fields to be: " +ectx.asInstanceOf[MethodContext].obj.fields )
  //     println("***** before ASSIGH " + id.value )
       
       val rhs = evalExpr(ectx,expr)
@@ -124,19 +126,40 @@ class Evaluator(ctx: Context, prog: Program) {
       // when we assigh value to a variable, the variable should be already define
       ectx.setVariable(id.value, rhs)
       
+ /*     if(id.value == "a"){
+        println("set variable of a in the context \n and set it in object " + 
+            ectx.asInstanceOf[MethodContext].obj + "\n with the fields : " + 
+            ectx.asInstanceOf[MethodContext].obj.fields)
+        
+      }
+      * 
+      */
+      
       // if the value is also the field of the object --> should be update
       if(ectxTraceLol(ectx)){
-        if(ectx.asInstanceOf[MethodContext].obj.fields.contains(id.value))
+        if(ectx.asInstanceOf[MethodContext].obj.fields.contains(id.value)){
           ectx.asInstanceOf[MethodContext].obj.setField(id.value,rhs)
+           // update the object in the context
+          // ectx.setVariable(ectx.asInstanceOf[MethodContext].obj.cd.id.value,ectx.asInstanceOf[MethodContext].obj)
+        }
+          
       }
+      
+     
+//      if(id.value == "a")println("update the object fields to be: " +ectx.asInstanceOf[MethodContext].obj.fields )
+      
+//      if(id.value == "b")println("b:update the object fields to be: " +ectx.asInstanceOf[MethodContext].obj.fields )
       
     }
     
     case ArrayAssign(id, index, expr) => {
-      // println("  [in arrayassign")
+      
       
       val arr = evalExpr(ectx,id).asArray
       arr.setIndex(evalExpr(ectx,index).asInt,evalExpr(ectx,expr).asInt)
+      
+//      println("  [in arrayassign" + id.value)
+      
       
       // update the ArrayAssign into the context 
       ectx.asInstanceOf[MethodContext].setVariable(id.value,arr)
@@ -263,19 +286,79 @@ class Evaluator(ctx: Context, prog: Program) {
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     case MethodCall(obj, meth, args) => {
-//     println("\n METHOD CALL: " + meth.value + " with arg: "+ args )
+/*      if(meth.value == "init" && ectxTraceLol(ectx)){println("call method init: in the context of " +
+          ectx.asInstanceOf[MethodContext].obj.cd.id.value + 
+          ectx.asInstanceOf[MethodContext])}
+*/
+ //     println("\n METHOD CALL: " + meth.value + " with arg: "+ args )
+ 
 //     println("\t obj: "+obj + " \t\t meth: " + meth +"\t\t\t args: " + args)
 
       val objThis = evalExpr(ectx, obj).asObject
 //      println("i method call in class " + objThis.cd.id.value + " findmeth " + meth.value)
+      
+      
       // FIND methDecl(id, args, retExpr, stats)
       val methCall = findMethod(objThis.cd,meth.value) 
       
       // deal with the change of the context
+      // change the obj, pass argment, add methdecl.vars 
       val mectx = interContext(objThis,methCall,args,ectx)
       
+      
+//      if(objThis.cd.id.value == "PseudoRandomNumberGenerator")
+//        println("new in method call in object PseudoRandomNumberGenerator + \n " +mectx.obj.cd.id.value )
       // ready to run the statements, which will change the context
+      
+      for(stmt <- methCall.stats){
+//        if(meth.value == "init" && ectxTraceLol(ectx))println("eval the statement: " + stmt +
+//            "\nin the context: "+ mectx)
+        evalStatement(mectx,stmt)
+      if(ectxTraceLol(ectx))
+      for(pair <- mectx.vars){
+        pair match{
+          case (s:String, v: Some[Value]) => {
+//            println("happen here " + s)
+            if(mectx.obj.fields.contains(s)) {
+//            println("happen1 here " + mectx.obj.cd.id.value)  
+            mectx.obj.setField(s,v.get)
+//            println("happen2 here " + mectx.obj.fields + "\n" + ectx)
+            if(ectxTraceLol(ectx) && ectx.asInstanceOf[MethodContext].vars.contains(s))ectx.setVariable(s, v.get)
+ //           println("not happen here " + ectx.asInstanceOf[MethodContext].vars)
+          }
+          }
+          case _ => {}
+        }
+      }        
+        
+      }
+      /*
       methCall.stats.foreach(evalStatement(mectx,_))
+      // in function scope:mectx, run the statement and change the mectx
+      // the statement may change the value of the opper context, 
+      //   for example: def init() which initial value of the class field
+      
+      // if the method initialize the field of the class(object), 
+      // the value should be update to the fields of the object + the upper context(if it is not in main)
+      if(ectxTraceLol(ectx))
+      for(pair <- mectx.vars){
+        pair match{
+          case (s:String, v: Some[Value]) => {
+            println("happen here " + s)
+            if(mectx.obj.fields.contains(s)) {
+            println("happen1 here " + mectx.obj.cd.id.value)  
+            mectx.obj.setField(s,v.get)
+            println("happen2 here " + mectx.obj.fields + "\n" + ectx)
+            if(ectxTraceLol(ectx))ectx.setVariable(s, v.get)
+            println("not happen here " + ectx.asInstanceOf[MethodContext].vars)
+          }
+          }
+          case _ => {}
+        }
+      }
+      * 
+      */
+      
       
       return evalExpr(mectx,methCall.retExpr)
     }
@@ -316,7 +399,8 @@ class Evaluator(ctx: Context, prog: Program) {
       
       // fields of the class -> objectValue
       for(classField <- fieldsOfClass(classIn)) newObj.declareField(classField)
-      
+      if(tpe.value  == "MazeArray")println("create mazearray object " + fieldsOfClass(classIn))
+      if(tpe.value == "PseudoRandomNumberGenerator")println("create PseudoRandomNumberGenerator")
       return newObj
     }
     
@@ -328,14 +412,16 @@ class Evaluator(ctx: Context, prog: Program) {
           
     case NewIntArray(size) => {
       val len:Int = evalExpr(ectx,size).asInt 
-      val arr:Array[Int] = new Array[Int](len)
+      val arr = new Array[Int](len + 1)
+      println("create a new array")
+       println(arr.mkString)
+       
       return (new ArrayValue(arr,len))
     }
   }
   }// end of evalExpr()
   
 
-  
   // Define the scope of evaluation, with methods to access/declare/set local variables(or arguments)
   abstract class EvaluationContext {
     def getVariable(name: String): Value
@@ -418,12 +504,12 @@ class Evaluator(ctx: Context, prog: Program) {
       if (fields contains name) {
         fields += name -> Some(v)
       } else {
-        fatal("Unknown field '"+name+"'")
+        fatal("Unknown field '"+name+"'" + "in class " + cd.id.value +" with classfield " + cd.vars)
       }
     }
 
     def getField(name: String) = {
-      fields.get(name).flatten.getOrElse(fatal("Unknown field '"+name+"'"))
+      fields.get(name).flatten.getOrElse(fatal("getfiels: Unknown field '"+name+"'" + "in class " + cd.id.value))
     }
 
     def declareField(name: String) {
@@ -440,15 +526,19 @@ class Evaluator(ctx: Context, prog: Program) {
 
   case class ArrayValue(var entries: Array[Int], val size: Int) extends Value {
     def setIndex(i: Int, v: Int) {
-      if (i >= size || i < 0) {
-        fatal("Index '"+i+"' out of bounds (0 .. "+size+")")
+      if (i >= size + 1 || i < 0) {
+ //       println(entries.mkString)
+        fatal("setIndex '"+i+"' out of bounds (0 .. "+size+")" + "now the array is \n")
       }
       entries(i) = v
     }
 
     def getIndex(i: Int) = {
-      if (i >= size || i < 0) {
-        fatal("Index '"+i+"' out of bounds (0 .. "+size+")")
+      if (i >= size + 1 || i < 0) {
+         println(entries.mkString)
+         println()
+         
+        fatal("getIndex '"+i+"' out of bounds (0 .. "+size+")" +"now the array is \n" )
       }
       entries(i)
     }

@@ -1,6 +1,6 @@
 object Maze {
   def main() : Unit = {
-    /* prints a maze of size 20x20 */
+    // prints a maze of size 20x20 
     println(new MazeArray().init(20).printMaze());
   }
 }
@@ -40,35 +40,37 @@ class MazeArray {
     // Drawing characters. I use Unicode, but you may want to replace that by
     // something else if it breaks (note that scala.io.Source handles it just
     // fine). Use the alternatives otherwise.
-    pipeChar = "┃";   // "|";
-    horzChar = "━";   // "-";
-    plusChar = "╋";   // "+";
-    t1Char   = "┳";   // "+";
-    t2Char   = "┫";   // "+";
-    t3Char   = "┻";   // "+";
-    t4Char   = "┣";   // "+";
-    l1Char   = "┗";   // "+";
-    l2Char   = "┏";   // "+";
-    l3Char   = "┓";   // "+";
-    l4Char   = "┛";   // "+";
-    i1Char   = "╻";   // "+";
-    i2Char   = "╸";   // "+";
-    i3Char   = "╹";   // "+";
-    i4Char   = "╺";   // "+";
+    pipeChar = "1";   // "|";
+    horzChar = "1";   // "-";
+    plusChar = "1";   // "+";
+    t1Char   = "1";   // "+";
+    t2Char   = "1";   // "+";
+    t3Char   = "1";   // "+";
+    t4Char   = "1";   // "+";
+    l1Char   = "1";   // "+";
+    l2Char   = "1";   // "+";
+    l3Char   = "1";   // "+";
+    l4Char   = "1";   // "+";
+    i1Char   = "1";   // "+";
+    i2Char   = "1";   // "+";
+    i3Char   = "1";   // "+";
+    i4Char   = "1";   // "+";
     arrBdyChar = " "; // "=";
     arrTipChar = " "; // ">";
 
     size = sze;
+    println("pass?");
+    // object(mazearray).init(){object(pseudoarandom...).init()}
     prng = new PseudoRandomNumberGenerator().init();
-
+    println("pass!");
     wallCount = 2 * size * (size - 1);
-    walls = new Int[wallCount];
-    vertOffset = wallCount / 2;
+    walls = new Int[wallCount]; //20
+    vertOffset = wallCount / 2; //10
 
-    wallIDs = new Int[wallCount];
+    wallIDs = new Int[wallCount]; // 20
 
-    cellCount = size * size;
-    cells = new Int[cellCount];
+    cellCount = size * size; //400
+    cells = new Int[cellCount]; //Int 400
     
     i = 0;
     while (i < wallCount) {
@@ -98,7 +100,10 @@ class MazeArray {
     var ptr : Int;
 
     ptr = cid;
-
+  //  println("here");
+  //  println(ptr);
+    if(ptr==400)
+    ptr = 399;
     while(!(cells[ptr] == ptr)) {
       ptr = cells[ptr];
     }
@@ -338,16 +343,17 @@ class MazeArray {
     }
     println(str);
 
-    return " ** Enjoy ! **";
+    return "   Enjoy !  ";
   }
 
   // only works for arrays with positive numbers.
+  // arr = Int[20]
   def shuffleArray(arr : Int[]) : Int[] = {
     var newarr : Int[];
     var i : Int;
     var j : Int;
 
-    newarr = new Int[arr.length];
+    newarr = new Int[arr.length]; //20
 
     i = 0;
     while(i < newarr.length) {
@@ -376,7 +382,11 @@ class PseudoRandomNumberGenerator {
   var b : Int;
 
   def init() : PseudoRandomNumberGenerator = {
-    a = 12345; // put whatever you like in here
+    println("if i can print :");
+
+    a = 12345; 
+      //  println(this.a);
+        // put whatever you like in here
     b = 67890; 
     return this;
   }
