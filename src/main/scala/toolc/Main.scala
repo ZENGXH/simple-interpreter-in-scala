@@ -29,7 +29,8 @@ object Main {
 
     val pipeline = Lexer andThen
                    Parser andThen
-                   NameAnalysis
+                   NameAnalysis andThen
+                   TypeChecking
 
 <<<<<<< HEAD
 
